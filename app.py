@@ -36,10 +36,10 @@ def load_sample(name: str) -> pd.DataFrame:
 def step_data():
     left, right = st.columns(2)
     with left:
-        uploaded = st.file_uploader("upload a csv", type=["csv"])
+        uploaded = st.file_uploader("Upload a CSV", type=["csv"])
     with right:
         samples = [NO_SAMPLE] + sorted(p.name for p in DATA_DIR.glob("*.csv"))
-        sample = st.selectbox("or try a sample dataset", samples)
+        sample = st.selectbox("Or try an example dataset", samples)
 
     try:
         if uploaded is not None:
@@ -47,7 +47,7 @@ def step_data():
         elif sample != NO_SAMPLE:
             df, source = load_sample(sample), sample
         else:
-            st.info("upload a csv or pick a sample dataset to get started.")
+            st.info("Upload a CSV or choose an example dataset to get started.")
             return None, None
     except ValueError as e:
         st.error(str(e))
@@ -189,31 +189,67 @@ def go_to(stage):
 def main():
     st.set_page_config(page_title="MAD Scientists · Figure Helper", page_icon="📊", layout="wide")
     st.markdown("""<style>
-    .block-container {max-width: 1180px; padding-top: 2.5rem;}
-    h1 {letter-spacing: -.035em;} h2 {letter-spacing: -.02em;}
-    div[data-testid="stVerticalBlockBorderWrapper"] {border-radius: 16px;}
-    button {min-height: 44px;}
-    </style>""", unsafe_allow_html=True)
-    st.caption("MAD SCIENTISTS / FIGURE HELPER")
-    st.title("Find a figure that tells your story.")
-    st.write("Start with your data and a question. Explore suitable figures, understand the tradeoffs, and download your choice.")
-    with st.sidebar:
-        st.header("Your workspace")
-        stage = st.radio("Go to", ["1 · Your data", "2 · Your question", "3 · Your figure"], key="stage")
-        st.divider()
-        st.caption("You can revisit any step. Your choices stay available during this session.")
-        st.caption("Files are processed by the Python app host. They are not sent to an external AI service. When run locally, that host is your computer.")
+    html, body, [data-testid="stApp"], [data-testid="stApp"] input,
+    [data-testid="stApp"] button, [data-testid="stApp"] select,
+    [data-testid="stApp"] textarea, [data-testid="stApp"] p,
+    [data-testid="stApp"] h1, [data-testid="stApp"] h2,
+    [data-testid="stApp"] h3 {font-family: Arial, Helvetica, sans-serif;}
+    [data-testid="stHeader"] {display: none;}
+    .block-container {max-width: 1200px; padding: 0 2.5rem 3rem;}
+    .site-masthead {background: #24569b; color: white; width: 100vw;
+        margin-left: calc(50% - 50vw); padding: 26px max(40px, calc((100vw - 1120px) / 2));
+        display: flex; align-items: center; gap: 30px; box-sizing: border-box;}
+    .site-brand {font-size: 19px; font-weight: 700; line-height: 1.25; letter-spacing: .01em;}
+    .site-name {font-size: 30px; font-weight: 400; border-left: 2px solid #d9e3f2;
+        padding-left: 30px; line-height: 1.4;}
+    .st-key-stage {width: 100%; border-bottom: 5px solid #b5bec1; padding: 8px 0 18px; margin-bottom: 20px;}
+    .st-key-stage [role="radiogroup"] {gap: 32px; flex-wrap: wrap;}
+    .st-key-stage [role="radiogroup"] label {padding: 12px 0; margin: 0;}
+    .st-key-stage [data-testid="stRadioOption"] > div > div:first-child {display: none;}
+    .st-key-stage [role="radiogroup"] label p {font-size: 14px; letter-spacing: .09em;
+        text-transform: uppercase; font-weight: 400; color: #42494e;}
+    .st-key-stage label:has(input:checked) {box-shadow: 0 3px 0 #24569b;}
+    .st-key-stage label:has(input:checked) p {color: #24569b; font-weight: 700;}
+    .st-key-stage label:focus-within {outline: 2px solid #24569b; outline-offset: 4px;}
+    h1 {font-size: 30px !important; font-weight: 400 !important; letter-spacing: 0 !important;}
+    h2 {font-size: 23px !important; font-weight: 400 !important; letter-spacing: 0 !important;}
+    h3 {font-size: 19px !important; font-weight: 600 !important;}
+    [data-testid="stApp"] button {border-radius: 0 !important; min-height: 42px; box-shadow: none;}
+    [data-testid="stExpander"], [data-testid="stExpander"] details,
+    [data-testid="stVerticalBlockBorderWrapper"], [data-testid="stAlertContainer"],
+    [data-testid="stFileUploaderDropzone"], [data-testid="stDataFrame"],
+    [data-baseweb="select"] > div, [data-baseweb="input"], [data-baseweb="tag"] {
+        border-radius: 0 !important; box-shadow: none !important;}
+    [data-testid="stExpander"] {border-color: #c8cdd2;}
+    [data-testid="stExpander"] summary {background: #f5f6f7; padding: 14px 18px;}
+    [data-testid="stFileUploaderDropzone"] {background: #f5f6f7; border: 1px solid #c8cdd2;}
+    [data-testid="stCaptionContainer"] {color: #596168;}
+    @media (max-width: 640px) {
+        .block-container {padding-left: 20px; padding-right: 20px;}
+        .site-masthead {padding: 22px 20px; gap: 18px;}
+        .site-brand {font-size: 15px;} .site-name {font-size: 23px; padding-left: 18px;}
+        .st-key-stage [role="radiogroup"] {gap: 18px;}
+        .st-key-stage [role="radiogroup"] label p {font-size: 12px; letter-spacing: .04em;}
+    }
+    </style>
+<div class="site-masthead"><div class="site-brand">MAD<br>Scientists</div>
+<div class="site-name">Figure Helper</div></div>
+    """, unsafe_allow_html=True)
+    stage = st.radio("Workflow navigation", ["1 · Your data", "2 · Your question", "3 · Your figure"],
+                     key="stage", horizontal=True, label_visibility="collapsed")
+    st.title("Choose a figure for your research")
+    st.write("Explore suitable figures for your data and question, understand the tradeoffs, and download your choice.")
+    st.caption("Revisit any step to revise your choices. Data is processed by the app host, with no external AI service.")
     # Keep widgets mounted in containers so Streamlit preserves choices between stages.
     data_panel = st.container()
     question_panel = st.container()
     figure_panel = st.container()
     with data_panel:
         if stage != "1 · Your data":
-            st.caption("DATA · Open “Your data” in the sidebar to change the dataset.")
+            st.caption("DATA · Select “Your data” above to change the dataset.")
         with st.expander("1. Your data", expanded=stage == "1 · Your data"):
             df, source = step_data()
     if df is None:
-        st.info("Start by uploading a CSV or choosing an example dataset above.")
         return
     if stage == "1 · Your data":
         st.button("Continue to your question →", on_click=go_to, args=("2 · Your question",), type="primary")

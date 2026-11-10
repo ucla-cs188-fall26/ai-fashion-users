@@ -1,0 +1,121 @@
+student_id,major,year,gpa,study_hours_per_week
+1000,biology,4,3.68,16.2
+1001,chemistry,3,3.56,23.9
+1002,computer science,3,3.47,17.1
+1003,economics,3,3.09,6.4
+1004,english,3,3.87,14.9
+1005,psychology,1,3.92,16.7
+1006,biology,3,3.38,15.3
+1007,chemistry,1,3.06,22.8
+1008,computer science,4,3.02,9.6
+1009,economics,2,3.34,11.2
+1010,english,4,3.03,19.7
+1011,psychology,2,3.76,22.3
+1012,biology,1,3.51,4.9
+1013,chemistry,1,3.41,17.6
+1014,computer science,3,3.35,19.4
+1015,economics,3,3.32,15.1
+1016,english,3,3.0,10.0
+1017,psychology,1,2.61,14.0
+1018,biology,3,3.27,14.7
+1019,chemistry,2,2.74,14.0
+1020,computer science,4,3.69,20.1
+1021,economics,4,3.04,18.3
+1022,english,1,3.15,24.7
+1023,psychology,2,3.53,7.8
+1024,biology,4,3.08,16.7
+1025,chemistry,1,3.01,18.0
+1026,computer science,4,3.39,17.3
+1027,economics,1,3.23,17.9
+1028,english,2,2.98,8.3
+1029,psychology,3,3.01,10.8
+1030,biology,2,3.64,12.8
+1031,chemistry,3,3.54,20.6
+1032,computer science,4,3.6,22.1
+1033,economics,3,3.09,11.4
+1034,english,2,3.37,11.5
+1035,psychology,1,2.97,8.9
+1036,biology,2,3.27,14.3
+1037,chemistry,2,3.31,11.5
+1038,computer science,4,3.28,19.6
+1039,economics,4,3.3,10.9
+1040,english,3,3.59,21.8
+1041,psychology,3,3.52,15.3
+1042,biology,4,3.35,13.3
+1043,chemistry,2,2.7,13.6
+1044,computer science,1,3.63,14.0
+1045,economics,1,3.72,8.8
+1046,english,3,3.56,15.7
+1047,psychology,2,3.58,15.0
+1048,biology,3,3.26,14.5
+1049,chemistry,3,2.71,15.1
+1050,computer science,2,3.79,11.8
+1051,economics,4,3.28,14.9
+1052,english,2,3.57,10.2
+1053,psychology,4,2.77,17.6
+1054,biology,1,3.44,19.5
+1055,chemistry,1,3.12,12.3
+1056,computer science,3,3.33,15.4
+1057,economics,3,3.3,18.6
+1058,english,1,3.28,11.2
+1059,psychology,2,2.81,17.5
+1060,biology,3,3.48,8.4
+1061,chemistry,4,2.92,11.4
+1062,computer science,2,3.33,13.5
+1063,economics,3,3.38,20.5
+1064,english,3,3.65,15.7
+1065,psychology,4,3.76,10.6
+1066,biology,4,3.15,13.9
+1067,chemistry,4,2.63,20.6
+1068,computer science,2,3.39,19.8
+1069,economics,1,3.37,18.4
+1070,english,2,3.46,22.4
+1071,psychology,3,3.57,20.5
+1072,biology,4,3.47,6.3
+1073,chemistry,2,2.78,16.7
+1074,computer science,3,3.27,16.6
+1075,economics,4,2.96,17.5
+1076,english,2,3.67,5.3
+1077,psychology,4,3.22,8.0
+1078,biology,1,3.45,20.3
+1079,chemistry,2,3.35,12.8
+1080,computer science,4,3.23,13.9
+1081,economics,2,3.37,12.0
+1082,english,1,2.9,9.8
+1083,psychology,3,3.42,14.8
+1084,biology,2,3.11,17.5
+1085,chemistry,1,3.23,19.1
+1086,computer science,1,2.82,8.6
+1087,economics,4,3.73,17.6
+1088,english,1,3.94,20.7
+1089,psychology,1,2.9,17.3
+1090,biology,1,3.46,22.6
+1091,chemistry,2,3.18,15.8
+1092,computer science,3,3.02,14.1
+1093,economics,2,2.76,23.5
+1094,english,3,3.43,18.3
+1095,psychology,2,2.85,14.9
+1096,biology,2,3.49,10.9
+1097,chemistry,3,3.1,13.2
+1098,computer science,2,3.51,25.5
+1099,economics,1,3.56,21.8
+1100,english,2,4.0,10.2
+1101,psychology,1,3.04,13.5
+1102,biology,3,3.7,10.4
+1103,chemistry,2,3.18,16.2
+1104,computer science,3,3.51,20.8
+1105,economics,4,2.9,16.0
+1106,english,1,4.0,16.0
+1107,psychology,1,3.35,5.4
+1108,biology,4,3.48,20.8
+1109,chemistry,1,2.64,18.7
+1110,computer science,3,3.21,18.5
+1111,economics,4,2.85,18.2
+1112,english,1,3.45,13.7
+1113,psychology,4,3.0,12.6
+1114,biology,2,3.31,20.2
+1115,chemistry,4,3.22,11.9
+1116,computer science,4,3.46,12.5
+1117,economics,1,2.85,15.6
+1118,english,2,3.42,18.0
+1119,psychology,4,3.23,10.7

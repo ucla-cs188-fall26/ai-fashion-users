@@ -6,7 +6,7 @@ import vl_convert as vlc
 # validated categorical palette (fixed order, never cycled) and recessive chart chrome
 PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
 SINGLE = PALETTE[0]
-INK, MUTED, GRID, AXIS = "#0b0b0b", "#898781", "#e1e0d9", "#c3c2b7"
+INK, MUTED, GRID, AXIS = "#0b0b0b", "#58616b", "#e1e0d9", "#c3c2b7"
 WIDTH, HEIGHT = 520, 320
 
 
@@ -30,6 +30,8 @@ def _yagg(y, agg):
         return "count():Q", "number of rows"
     if agg == "mean":
         return f"mean({y}):Q", f"average {y}"
+    if agg == "median":
+        return f"median({y}):Q", f"median {y}"
     if agg == "sum":
         return f"sum({y}):Q", f"total {y}"
     return f"{y}:Q", y

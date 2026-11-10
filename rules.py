@@ -195,6 +195,8 @@ def _value_phrase(roles):
         return "how many rows fall in each"
     if roles.get("agg") == "mean":
         return f"the average {roles['y']} for each"
+    if roles.get("agg") == "median":
+        return f"the median {roles['y']} for each"
     return f"the {roles['y']} for each"
 
 
@@ -229,7 +231,7 @@ RULES = [
         fit=fit_bar,
         hard=[too_many_groups(20, "with {k} groups the bars get too thin to read. try filtering to the groups you care about most.")],
         soft=[crowded_groups(10, 0.2, "with {k} groups it's getting crowded; sorting the bars or keeping the top 10 helps.")],
-        why=lambda ctx, r, g: (f"bar charts are the clearest way to compare groups because bar lengths are easy to line up by eye. "
+        why=lambda ctx, r, g: (f"bar lengths make differences between group summaries easy to compare. "
                                f"each bar shows {_value_phrase(r)} {r['x']}; you have {_groups(ctx, r)} groups."),
     ),
     Rule(
@@ -289,7 +291,7 @@ RULES = [
     ),
     Rule(
         id="strip", figure="strip", label="Strip (dot) plot",
-        goals={"distribution": 0.8},
+        goals={"distribution": 0.8, "comparison": 0.7},
         fit=fit_one_numeric_or_split,
         hard=[lambda ctx, r: (f"with {ctx.n_rows} points the dots pile on top of each other and become a smear; a box plot or histogram summarizes them better."
                               if ctx.n_rows > 500 else None)],
@@ -305,7 +307,7 @@ RULES = [
         soft=[lambda ctx, r: ((0.3, f"with {ctx.n_rows} points, dots will overlap heavily (we make them see-through to help).")
                               if ctx.n_rows > 5000 else None)],
         why=lambda ctx, r, g: (f"scatter plots put {r['x']} on one axis and {r['y']} on the other, so each dot is one row. "
-                               f"if the dots form an upward or downward band, the two move together; a shapeless cloud means they don't."),
+                               f"look for upward, downward, or curved patterns and unusual observations. Association does not establish causation; no obvious pattern does not prove there is no relationship."),
     ),
     Rule(
         id="pie", figure="pie", label="Pie chart",
@@ -342,9 +344,13 @@ RULES = [
 
 # ---------- engine ----------
 
-def suggest(columns: list[dict], goal: str) -> dict:
+def suggest(columns: list[dict], goal: str, intent: str | None = None, summary: str = "mean") -> dict:
     # columns = the 1-2 columns the user selected (types possibly overridden).
     # returns {"suggested": [...], "ruled_out": [...], "message": str or None}
+    if intent not in (None, "typical", "variation", "individual"):
+        raise ValueError("unknown comparison intent")
+    if summary not in ("mean", "median"):
+        raise ValueError("summary must be mean or median")
     if goal not in GOALS:
         raise ValueError(f"unknown goal: {goal}")
     if not columns:
@@ -367,6 +373,8 @@ def suggest(columns: list[dict], goal: str) -> dict:
                 rule_out(rule, reason)
             continue
 
+        if goal == "comparison" and rule.id == "strip" and not ctx.cats:
+            continue
         roles = rule.fit(ctx)
         if isinstance(roles, str):
             rule_out(rule, roles)
@@ -377,7 +385,15 @@ def suggest(columns: list[dict], goal: str) -> dict:
             rule_out(rule, failed)
             continue
 
+        if roles.get("agg") == "mean":
+            roles["agg"] = summary
         score, notes = rule.goals[goal], []
+        if goal == "comparison" and intent:
+            preferred = {"typical": "bar", "variation": "box", "individual": "strip"}[intent]
+            if rule.id == preferred:
+                score += 0.4
+            elif rule.id in ("bar", "box", "strip"):
+                score -= 0.1
         for s in rule.soft:
             hit = s(ctx, roles)
             if hit:
@@ -385,10 +401,14 @@ def suggest(columns: list[dict], goal: str) -> dict:
                 notes.append(hit[1])
 
         why = rule.why(ctx, roles, goal)
+        if roles.get("agg") == "median":
+            why = why.replace("average", "median")
         if notes:
             why += " heads up: " + " ".join(notes)
 
         suggested.append({
+            "limit": LIMITS[rule.figure],
+            "emphasis": EMPHASIS[rule.figure],
             "figure": rule.figure,
             "label": rule.label,
             "x": roles.get("x"),
@@ -403,3 +423,28 @@ def suggest(columns: list[dict], goal: str) -> dict:
     suggested.sort(key=lambda s: -s["score"])
     message = None if suggested else "nothing fits this combination yet. " + GOAL_NEEDS[goal]
     return {"suggested": suggested, "ruled_out": ruled_out, "message": message}
+
+
+# Explanation text is part of the recommendation result, shared by UI and tests.
+EMPHASIS = {
+    "bar": "Compare a single summary or count for each group.",
+    "grouped_bar": "Compare counts for combinations of two groups.",
+    "line": "Follow changes across an ordered time axis.",
+    "histogram": "See the overall shape and frequency of values in ranges.",
+    "box": "Compare medians and the spread of the middle half of values.",
+    "strip": "Inspect individual observations and unusual values.",
+    "scatter": "Explore patterns between two measurements, one dot per complete row.",
+    "pie": "See each category's share of a meaningful total.",
+    "stacked_bar": "Compare proportions of a meaningful whole.",
+}
+LIMITS = {
+    "bar": "A summary hides variation and individual observations. Differences alone do not establish statistical significance.",
+    "grouped_bar": "Counts depend on sample sizes; larger counts do not necessarily mean higher rates.",
+    "line": "Connecting observed times does not establish what happened between them or what caused a change.",
+    "histogram": "The apparent shape depends on the bin ranges; small samples can be misleading.",
+    "box": "Boxes hide individual values and can conceal multiple clusters. Outlier markers are not proof of errors.",
+    "strip": "Dots can overlap. Horizontal spreading only separates marks; it is not another measurement.",
+    "scatter": "Association does not establish causation. A weak visible pattern does not rule out a nonlinear relationship.",
+    "pie": "Similar slices are difficult to compare. Values must be nonnegative parts of the same whole.",
+    "stacked_bar": "Proportions hide absolute totals. Values must be nonnegative parts of a meaningful whole.",
+}

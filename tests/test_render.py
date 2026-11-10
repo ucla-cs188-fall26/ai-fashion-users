@@ -38,3 +38,13 @@ def test_all_figure_types_are_covered():
 def test_renders_and_exports(df, suggestion):
     png = to_png(render(df, suggestion), scale=1)
     assert png[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_median_export_uses_requested_aggregation():
+    df = load_csv(DATA / 'grades_by_major.csv')
+    info = {c['name']: c for c in detect_columns(df)}
+    sel = [info['major'], info['gpa']]
+    suggestion = suggest(sel, 'comparison', summary='median')['suggested'][0]
+    chart = render(apply_types(df, sel), suggestion)
+    assert chart.to_dict()['encoding']['y']['aggregate'] == 'median'
+    assert to_png(chart, scale=1).startswith(b'\x89PNG')

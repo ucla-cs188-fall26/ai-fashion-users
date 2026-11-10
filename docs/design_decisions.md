@@ -19,3 +19,13 @@
 - **Decision:** step 2 shows the detected type for each selected column, and the student can change it from a dropdown.
 - **Alternative rejected:** fully automatic detection.
 - **Why:** numeric codes such as year 1-4 or ratings 1-5 are often really categories, and the reverse also happens. A wrong type produces wrong suggestions. The rules also point students to this control: a line chart ruled out for a category column says "change its type to date or numeric in step 2".
+
+## 5. Ask what a group comparison should emphasize
+- **Decision:** ask whether the user wants typical values, variation, or individual observations. Prioritize bars, boxes, or dots respectively, subject to the existing data constraints. Offer mean or median explicitly for summaries.
+- **Alternative:** always rank average bars first.
+- **Reason:** the same variables can support different messages. This implements the goal-plus-data matching insight without an external AI service. The precise ranking weights are implementation judgments, not validated research findings.
+
+## 6. Guide the task and explain tradeoffs
+- **Decision:** provide three named stages, persistent controls, one selected chart preview, and separate explanations for fit, emphasis, and limitations. Keep alternatives and exclusions available without rendering every chart at once.
+- **Alternative:** a long page containing every chart and download button.
+- **Reason:** support independent walkthroughs and design goal 2 while reducing competing actions. Whether this improves usability remains to be evaluated with real participants.

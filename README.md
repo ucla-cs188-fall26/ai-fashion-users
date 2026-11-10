@@ -52,3 +52,11 @@ pytest
 | `data/` | sample datasets (regenerate with `python scripts/make_samples.py`) |
 | `tests/` | unit tests for detection and rules, plus a render smoke test |
 | `docs/design_decisions.md` | design decisions log |
+
+## Updated selection workflow
+- Use the sidebar or Continue buttons to move between data, question, and figure stages. Earlier choices remain available in their expandable sections.
+- For group comparisons with a measurement, choose typical values, variation, or individual observations. This changes the preferred chart, subject to sample-size and crowding rules.
+- Choose mean or median for group/time summaries. For two numeric variables used as a time trend, identify and confirm the time variable first.
+- Select a suitable chart to inspect its fit, emphasis, and limitations. Other suitable charts are alternatives, not necessarily inferior choices. Numeric ranking weights are implementation heuristics, not validated confidence scores.
+- PNG export uses the selected chart. Chart label editing is not implemented yet.
+- CSVs are processed by the Python app host, with no external AI service. A local run processes data on your computer; a hosted run processes it on that server.

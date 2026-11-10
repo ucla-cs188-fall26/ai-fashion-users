@@ -147,3 +147,29 @@ def test_every_result_has_explanations(goal, selection):
     assert r["suggested"] or r["message"]
     scores = [s["score"] for s in r["suggested"]]
     assert scores == sorted(scores, reverse=True)
+
+@pytest.mark.parametrize('intent,expected', [('typical', 'bar'), ('variation', 'box'), ('individual', 'strip')])
+def test_comparison_intent_changes_primary_chart(intent, expected):
+    result = suggest(cols('grades_by_major.csv', 'major', 'gpa'), 'comparison', intent=intent)
+    assert result['suggested'][0]['figure'] == expected
+    assert all(s['limit'] and s['emphasis'] for s in result['suggested'])
+
+
+def test_small_comparison_keeps_individual_observations_available():
+    result = suggest([col('lab', 'categorical', 3, 6), col('yield', 'numeric', 6, 6)],
+                     'comparison', intent='individual')
+    assert result['suggested'][0]['figure'] == 'strip'
+
+
+def test_median_summary_and_explanation_agree():
+    result = suggest(cols('grades_by_major.csv', 'major', 'gpa'), 'comparison', summary='median')
+    bar = next(s for s in result['suggested'] if s['figure'] == 'bar')
+    assert bar['agg'] == 'median'
+    assert 'median' in bar['why']
+    assert 'average' not in bar['why']
+
+
+def test_relationship_explains_scientific_limit():
+    result = suggest(cols('height_weight.csv', 'height_cm', 'weight_kg'), 'relationship')
+    assert 'causation' in result['suggested'][0]['limit']
+    assert 'shapeless cloud means' not in result['suggested'][0]['why']

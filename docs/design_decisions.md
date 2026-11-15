@@ -58,3 +58,13 @@
 - **Decision:** go back to Anusha's original layout: steps 1-4 on one scrolling page, Streamlit's default look, a narrower centered page, and each figure's explanation below it. This replaces the stage tabs, collapsible step sections, and custom banner from decision 6; everything else from decision 6 stays (one selected figure at a time, alternatives and exclusions in expanders).
 - **Alternative rejected:** keeping both the stage tabs and scrolling.
 - **Why:** having two ways to move through the same page was redundant and confusing. The plain layout keeps attention on the data, the finding, and the figure.
+
+## 13. Redirect mismatched questions instead of dead ends
+- **Decision:** when the goal and columns don't fit together, explain the mismatch and answer the question the columns can support (two measurements + "compare" becomes a relationship; a category + a number + "relationship" becomes a comparison; a date + a number + "compare" becomes a trend). Also added: two categories + "relationship" (100% stacked bars), one category + "spread" (counts), one date + "trend" (counts over time).
+- **Alternative rejected:** "nothing fits" messages.
+- **Why:** a student asked to compare GPA with study hours, which is a valid question in everyday words. The old message was a dead end; the new one teaches the distinction and still gives a figure (design goal 2).
+
+## 14. Test against textbook datasets, like Tea did
+- **Decision:** benchmark the tool on six R datasets whose documentation runs a known analysis (`benchmarks/textbook.py`, `docs/evaluation.md`).
+- **Alternative rejected:** demoing only on our synthetic GPA data.
+- **Why:** Tea was validated against textbook tutorials. Our first run found two real gaps (paired data and a second factor) that now set the priorities for the final.

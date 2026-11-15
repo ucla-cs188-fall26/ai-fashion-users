@@ -44,6 +44,17 @@ Other scenarios to try:
 - `height_weight.csv`, columns `height_cm` + `weight_kg`, goal **relationship**: suggests a scatter plot
 - `grades_by_major.csv`, columns `year` + `gpa`, goal **trend over time**: nothing fits, because `year` is detected as a category. change its type to **numeric** and a line chart appears
 
+## real datasets to try
+The `data/` folder also has six classic datasets from published studies (they ship with R, and their documentation describes the original analysis):
+- `plant_growth_dobson1983.csv`: compare `trt2` vs `trt1` on `weight`
+- `chick_weights_by_feed.csv`: compare `casein` vs `horsebean` on `weight`
+- `insect_sprays_beall1942.csv`: compare spray `C` vs `A` on `count`
+- `car_stopping_distance_1920s.csv`: relationship between `speed` and `dist`
+- `sleep_drug_student1908.csv` and `tooth_growth_vitamin_c.csv`: known limits of v1 (paired data, a second factor); see `docs/evaluation.md`
+
+## evaluation
+`python benchmarks/textbook.py` checks the tool against the documented analysis of each dataset. Results and the plan for comparing with Gemini and ChatGPT are in `docs/evaluation.md`.
+
 ## tests
 ```
 pytest
@@ -60,7 +71,8 @@ pytest
 | `rules.py` | the rule table and the `suggest()` engine for browsing by goal |
 | `render.py` | turns a suggestion or a finding into an altair chart, plus png export |
 | `data/` | sample datasets (regenerate with `python scripts/make_samples.py`) |
-| `tests/` | unit tests for detection and rules, plus a render smoke test |
+| `tests/` | unit tests for detection, rules, claims, figures, and the app flow |
+| `benchmarks/` | textbook benchmark (see `docs/evaluation.md`) |
 | `docs/design_decisions.md` | design decisions log |
 
 ## Updated selection workflow

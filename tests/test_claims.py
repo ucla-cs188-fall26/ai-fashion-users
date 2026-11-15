@@ -108,4 +108,4 @@ def test_finding_figures_render_with_message_title(figure):
     r = check(df, Finding("y", "g", "a", "b", "lower"))
     spec = render_finding(df, r, figure).to_dict()
     assert spec["title"]["text"] == r["message"]
-    assert r["message"][0].isupper()
+    assert r["message"].startswith("a has a lower")  # data labels keep their own spelling

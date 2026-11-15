@@ -137,11 +137,10 @@ def check(df: pd.DataFrame, f: Finding) -> dict:
 
 def message(f: Finding, data_says: str, gap: float) -> str:
     # the one-sentence finding, used as the figure title (titles drive what readers remember)
+    # group names are data, so they keep their own spelling; only our own words get capitalized
     if data_says == "unclear":
-        text = f"no clear difference in average {f.measure} between {f.a} and {f.b}"
-    else:
-        text = f"{f.a} has a {data_says} average {f.measure} than {f.b} (by {abs(gap):.2f})"
-    return text[0].upper() + text[1:]
+        return f"No clear difference in average {f.measure} between {f.a} and {f.b}"
+    return f"{f.a} has a {data_says} average {f.measure} than {f.b} (by {abs(gap):.2f})"
 
 
 def _headline(f: Finding, status: str, data_says: str) -> str:

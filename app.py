@@ -6,9 +6,12 @@ import pandas as pd
 import streamlit as st
 import vl_convert as vlc
 
+from claims import Finding, check
 from detect import TYPES, apply_types, detect_columns, load_csv
-from render import render
+from finding import suggest_for_finding
+from render import render, render_finding
 from rules import GOAL_DESCRIPTIONS, GOAL_LABELS, GOALS, suggest
+from sources import cite
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 NO_SAMPLE = "(choose a sample)"
@@ -125,6 +128,98 @@ def step_goal():
     )
 
 
+def show_sources(sources):
+    # one line per source; links open the paper
+    lines = [f"- [{x['text']}]({x['url']})" if x["url"] else f"- {x['text']}" for x in sources]
+    st.markdown("\n".join(lines))
+
+
+# ---------- finding: the student states what they want to show ----------
+
+NOT_SURE = "not sure"
+
+
+def step_finding(typed, cat, num, source):
+    st.subheader("State your finding")
+    st.caption("Pick the two groups your finding is about. Not sure which is higher? Leave it as "
+               "\"not sure\" and the data will tell you.")
+    groups = sorted(typed[cat].dropna().astype(str).unique())
+    left, mid, right = st.columns([2, 2, 2])
+    a = left.selectbox("Group", [None] + groups, key=f"find_a_{source}", placeholder="choose a group",
+                       format_func=lambda g: "choose a group" if g is None else g)
+    direction = mid.selectbox(
+        "compared with", ["higher", "lower", NOT_SURE], index=2, key=f"find_dir_{source}",
+        format_func=lambda d: {"higher": f"has a higher average {num} than",
+                               "lower": f"has a lower average {num} than",
+                               NOT_SURE: f"(not sure how its average {num} compares to)"}[d])
+    b = right.selectbox("Other group", [None] + [g for g in groups if g != a], key=f"find_b_{source}",
+                        format_func=lambda g: "choose a group" if g is None else g)
+    if a is None or b is None:
+        st.caption("Or skip this and browse suitable charts below.")
+        return None
+    return Finding(measure=num, group_col=cat, a=a, b=b, direction=None if direction == NOT_SURE else direction)
+
+
+def step_finding_results(typed, finding, source):
+    st.header("3. Your finding and figure")
+    try:
+        result = check(typed, finding)
+    except ValueError as e:
+        st.error(str(e))
+        return
+    box = {"supported": st.success, "found": st.success, "contradicted": st.error, "unclear": st.warning}[result["status"]]
+    box(result["headline"])
+    st.caption(result["detail"])
+    if result["small_n"]:
+        st.caption("Heads up: with fewer than 10 values in a group, the interval is rough. Treat it as a first look.")
+    with st.expander("How we checked this"):
+        st.markdown(
+            f"We compared the average {finding.measure} of {finding.a} and {finding.b}. To see how sure we can be, we "
+            "resampled each group 10,000 times and took the middle 95% of the gaps we got (a bootstrap interval). "
+            "If that interval stays on one side of zero, the data supports a difference in that direction. "
+            "We also report Cohen's d, the gap measured in units of how spread out the values are "
+            "(0.2 small, 0.5 medium, 0.8 large, by convention). This is a first check, not a full analysis: "
+            "it compares averages only and doesn't adjust for other variables.")
+        show_sources(cite("tea"))
+
+    n_groups = typed[finding.group_col].nunique()
+    plan = suggest_for_finding(result, n_groups)
+    labels = [s["label"] for s in plan["suggested"]]
+    choice = st.radio("Figures that show this finding", labels, horizontal=True,
+                      key=f"find_fig_{source}_{finding.a}_{finding.b}")
+    chosen = plan["suggested"][labels.index(choice)]
+    show_others = n_groups > 2 and st.checkbox(f"Also show the other {n_groups - 2} groups (muted)",
+                                               key=f"find_others_{source}")
+    with st.container(border=True):
+        st.subheader(chosen["label"])
+        if chosen is plan["suggested"][0]:
+            st.caption("RECOMMENDED · built around your finding")
+        if result["status"] == "contradicted":
+            st.caption("The title states what your data shows, not your original claim.")
+        left, right = st.columns([2, 1])
+        with left:
+            chart = render_finding(typed, result, chosen["figure"], show_others)
+            st.altair_chart(chart, theme=None)
+        with right:
+            st.markdown("**Why it fits your finding**")
+            st.write(chosen["why"])
+            st.markdown("**What it emphasizes**")
+            st.write(chosen["emphasis"])
+            st.markdown("**Keep in mind**")
+            st.write(chosen["limit"])
+        with st.expander("Where these rules come from"):
+            show_sources(chosen["sources"] + cite("kong"))
+        try:
+            st.download_button("Download this figure as PNG", png_bytes(chart.to_json()),
+                               file_name=f"{chosen['figure']}.png", mime="image/png", type="primary")
+        except Exception as e:
+            st.error(f"PNG export is unavailable: {e}")
+    with st.expander("Why some other charts do not fit"):
+        for r in plan["ruled_out"]:
+            st.markdown(f"**{r['label']}:** {r['why_not']}")
+            st.caption("Source: " + "; ".join(x["text"] for x in r["sources"]))
+
+
 def step_results(typed, selected, goal, intent=None, summary="mean"):
     result = suggest(selected, goal, intent=intent, summary=summary)
     st.header("3. Choose your figure")
@@ -158,6 +253,8 @@ def step_results(typed, selected, goal, intent=None, summary="mean"):
                 st.write(chosen["emphasis"])
                 st.markdown("**Keep in mind**")
                 st.write(chosen["limit"])
+            with st.expander("Where this rule comes from"):
+                show_sources(chosen["sources"])
             used = list(dict.fromkeys(c for c in (chosen.get("x"), chosen.get("y"), chosen.get("color")) if c))
             n = len(typed[used].dropna()) if used else len(typed)
             st.caption(f"Using {n} of {len(typed)} rows. {len(typed) - n} rows excluded because a selected value is missing or could not be read.")
@@ -260,14 +357,16 @@ def main():
             if not selected or goal is None:
                 st.info("Choose your question and variables to see suitable figures.")
                 return
-            intent, summary = None, "mean"
+            intent, summary, finding = None, "mean", None
             cats = [c for c in selected if c["type"] == "categorical"]
             nums = [c for c in selected if c["type"] == "numeric"]
             if goal == "comparison" and cats and nums:
+                finding = step_finding(typed, cats[0]["name"], nums[0]["name"], source)
+            if goal == "comparison" and cats and nums and finding is None:
                 intent = st.radio("What matters most in this comparison?", ["typical", "variation", "individual"],
                     format_func=lambda v: {"typical": "Typical values in each group", "variation": "How much values vary within each group", "individual": "Every individual observation"}[v],
                     key=f"intent_{source}")
-            if nums and (goal == "trend" or (goal == "comparison" and cats)):
+            if finding is None and nums and (goal == "trend" or (goal == "comparison" and cats)):
                 summary = st.selectbox("If several rows share a group or time point, summarize them using", ["mean", "median"],
                     format_func=lambda v: "Average (mean)" if v == "mean" else "Median (middle value)", key=f"summary_{source}")
                 st.caption("This choice affects summary charts. Dot and box plots still use the individual observations.")
@@ -281,7 +380,10 @@ def main():
             if stage != "3 · Your figure":
                 st.button("See suitable figures →", on_click=go_to, args=("3 · Your figure",), type="primary")
     with figure_panel:
-        step_results(typed, selected, goal, intent, summary)
+        if finding is not None:
+            step_finding_results(typed, finding, source)
+        else:
+            step_results(typed, selected, goal, intent, summary)
 
 
 if __name__ == "__main__":

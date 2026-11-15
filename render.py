@@ -164,6 +164,56 @@ def render(df: pd.DataFrame, suggestion: dict) -> alt.Chart:
     return chart
 
 
+OTHER = "#c8c8c8"  # muted gray for groups outside the stated finding
+
+
+def render_finding(df: pd.DataFrame, result: dict, figure: str, show_others: bool = False) -> alt.Chart:
+    # draws a figure built around a stated finding: the two groups sit first and side by side
+    # (arrangement steers the comparison), are the only colored marks (prominence = takeaway),
+    # and the title states the finding (titles drive recall).
+    from claims import group_intervals  # local import keeps render usable without the claims module
+
+    f = result["finding"]
+    a, b = str(f.a), str(f.b)
+    groups = [a, b]
+    if show_others:
+        groups += sorted(str(g) for g in df[f.group_col].dropna().astype(str).unique() if str(g) not in (a, b))
+    data = group_intervals(df, f.group_col, f.measure, groups)
+    data["role"] = data[f.group_col].map(lambda g: g if g in (a, b) else "other groups")
+    order = list(data[f.group_col])
+    color = alt.Color("role:N", title=None, legend=None,
+                      scale=alt.Scale(domain=[a, b, "other groups"], range=[PALETTE[0], PALETTE[1], OTHER]))
+    x = alt.X(f"{f.group_col}:N", title=f.group_col, sort=order, axis=alt.Axis(labelAngle=0 if len(order) <= 4 else -30))
+    tip = [alt.Tooltip(f"{f.group_col}:N"), alt.Tooltip("mean:Q", title=f"average {f.measure}", format=".2f"),
+           alt.Tooltip("low:Q", title="95% interval low", format=".2f"),
+           alt.Tooltip("high:Q", title="95% interval high", format=".2f"), alt.Tooltip("n:Q", title="values")]
+    base = alt.Chart(data)
+
+    if figure == "bar_focus":
+        bars = base.mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
+            x=x, y=alt.Y("mean:Q", title=f"average {f.measure}", scale=alt.Scale(zero=True)), color=color, tooltip=tip)
+        labels = base.transform_filter(alt.FieldOneOfPredicate(field=f.group_col, oneOf=[a, b])).mark_text(
+            dy=-8, color=INK, fontSize=12).encode(x=x, y="mean:Q", text=alt.Text("mean:Q", format=".2f"))
+        chart = bars + labels
+        subtitle = f"bars show average {f.measure}; your two groups are highlighted"
+    elif figure == "dot_ci":
+        rules = base.mark_rule(strokeWidth=3).encode(
+            x=x, y=alt.Y("low:Q", title=f"average {f.measure}", scale=alt.Scale(zero=False)), y2="high:Q",
+            color=color, tooltip=tip)
+        dots = base.mark_circle(size=140, opacity=1, stroke="#ffffff", strokeWidth=1.5).encode(
+            x=x, y="mean:Q", color=color, tooltip=tip)
+        labels = base.transform_filter(alt.FieldOneOfPredicate(field=f.group_col, oneOf=[a, b])).mark_text(
+            dx=26, color=INK, fontSize=12).encode(x=x, y="mean:Q", text=alt.Text("mean:Q", format=".2f"))
+        chart = rules + dots + labels
+        subtitle = "dots show the average; lines show the 95% interval for each average"
+    else:
+        raise ValueError(f"don't know how to draw finding figure: {figure}")
+
+    title = alt.TitleParams(result["message"], subtitle=subtitle, subtitleColor=MUTED, subtitleFontSize=12)
+    width = max(260, min(WIDTH, 110 * len(order)))
+    return _style(chart.properties(width=width), "").properties(title=title, width=width)
+
+
 def to_png(chart: alt.Chart, scale: float = 2.0) -> bytes:
     # png bytes for the download button
     return vlc.vegalite_to_png(chart.to_json(), scale=scale)

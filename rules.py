@@ -5,6 +5,8 @@
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
+from sources import cite
+
 GOALS = ["comparison", "trend", "distribution", "relationship", "part_to_whole"]
 
 GOAL_LABELS = {
@@ -362,7 +364,8 @@ def suggest(columns: list[dict], goal: str, intent: str | None = None, summary: 
     def rule_out(rule, reason):
         if rule.label not in seen:
             seen.add(rule.label)
-            ruled_out.append({"figure": rule.figure, "label": rule.label, "why_not": reason})
+            ruled_out.append({"figure": rule.figure, "label": rule.label, "why_not": reason,
+                              "sources": cite(*RULE_SOURCES[rule.id])})
 
     for rule in RULES:
         # goal doesn't match: only mention it if it's a common wrong choice for this data
@@ -418,6 +421,7 @@ def suggest(columns: list[dict], goal: str, intent: str | None = None, summary: 
             "normalize": roles.get("normalize", False),
             "score": round(max(score, 0.0), 2),
             "why": why,
+            "sources": cite(*RULE_SOURCES[rule.id]),
         })
 
     suggested.sort(key=lambda s: -s["score"])
@@ -447,4 +451,19 @@ LIMITS = {
     "scatter": "Association does not establish causation. A weak visible pattern does not rule out a nonlinear relationship.",
     "pie": "Similar slices are difficult to compare. Values must be nonnegative parts of the same whole.",
     "stacked_bar": "Proportions hide absolute totals. Values must be nonnegative parts of a meaningful whole.",
+}
+
+# where each rule's constraints come from (see sources.py). thresholds such as "6 slices" or
+# "20 values for a histogram" are our own conventions, so those rules also cite "team".
+RULE_SOURCES = {
+    "bar": ("zacks", "cleveland", "team"),
+    "grouped_bar": ("cleveland", "team"),
+    "line": ("zacks", "mackinlay"),
+    "time_bar": ("zacks", "team"),
+    "histogram": ("team",),
+    "box": ("team",),
+    "strip": ("team",),
+    "scatter": ("mackinlay",),
+    "pie": ("cleveland", "mackinlay", "team"),
+    "stacked_bar": ("cleveland", "mackinlay", "team"),
 }

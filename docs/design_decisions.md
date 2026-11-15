@@ -29,3 +29,18 @@
 - **Decision:** provide three named stages, persistent controls, one selected chart preview, and separate explanations for fit, emphasis, and limitations. Keep alternatives and exclusions available without rendering every chart at once.
 - **Alternative:** a long page containing every chart and download button.
 - **Reason:** support independent walkthroughs and design goal 2 while reducing competing actions. Whether this improves usability remains to be evaluated with real participants.
+
+## 7. The student states their finding, not just a goal category
+- **Decision:** for comparisons, the student picks group A, a direction (higher / lower / not sure), and group B. The figure is built around that finding.
+- **Alternative rejected:** asking only for the goal category (comparison, trend, ...), as in decision 1.
+- **Why:** one participant said "I did know what I wanted to show. I just didn't know how to make it show it though." Our expert's first question was "what are you comparing?" Tea works the same way: it takes a hypothesis, not a test name. Pickers instead of free text keep it predictable (same reasoning as decision 1). "Not sure" lets students who don't know the direction still get an answer.
+
+## 8. Check the finding against the data before drawing it
+- **Decision:** a bootstrap 95% interval for the gap in averages plus Cohen's d, reported as a plain-language verdict (supported / opposite / can't tell apart yet) with the numbers underneath.
+- **Alternative rejected:** full Tea-style test selection (normality and variance checks, then t-test or Mann-Whitney) for this prototype.
+- **Why:** bootstrapping is Tea's own fallback when no standard test fits, and it needs no normality assumption. Tea also reports effect sizes and recommends focusing on them. We report the gap and its uncertainty rather than a pass/fail stamp so the tool doesn't encourage fishing for significance. Tea-style test selection is planned for the final.
+
+## 9. Small gaps get dots with intervals, not bars
+- **Decision:** when the gap is under 10% of the taller bar (team heuristic), or the data can't separate the groups, dots with 95% intervals come first; otherwise highlighted bars come first.
+- **Alternative rejected:** always bars for comparisons.
+- **Why:** bars encode length, so they must start at zero, which makes small real gaps look flat. Position on a common scale is the most accurately read encoding (Cleveland & McGill) and doesn't need zero. The two groups are placed side by side because arrangement steers which comparison people make (Xiong et al. 2021), and only they are colored because readers take the most prominent feature as the takeaway (Kim et al. 2021).

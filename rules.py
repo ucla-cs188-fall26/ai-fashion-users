@@ -407,7 +407,7 @@ def suggest(columns: list[dict], goal: str, intent: str | None = None, summary: 
         if roles.get("agg") == "median":
             why = why.replace("average", "median")
         if notes:
-            why += " heads up: " + " ".join(notes)
+            why += " Heads up: " + " ".join(notes)
 
         suggested.append({
             "limit": LIMITS[rule.figure],
@@ -425,7 +425,7 @@ def suggest(columns: list[dict], goal: str, intent: str | None = None, summary: 
         })
 
     suggested.sort(key=lambda s: -s["score"])
-    message = None if suggested else "nothing fits this combination yet. " + GOAL_NEEDS[goal]
+    message = None if suggested else "Nothing fits this combination yet. " + GOAL_NEEDS[goal]
     return {"suggested": suggested, "ruled_out": ruled_out, "message": message}
 
 

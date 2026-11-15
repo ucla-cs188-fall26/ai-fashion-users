@@ -35,3 +35,13 @@ def test_stated_finding_is_checked_and_drawn():
     assert any('supports this' in s.value for s in app.success)
     assert any(h.value == '4. Your finding and figure' for h in app.header)
     assert any(h.value == 'Every value, with averages and 95% intervals' for h in app.subheader)
+
+
+def test_comparing_two_measurements_routes_to_relationship():
+    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app.selectbox[0].select('grades_by_major.csv').run()
+    app.radio(key='goal').set_value('comparison')
+    app.multiselect[0].set_value(['gpa', 'study_hours_per_week']).run()
+    assert not app.exception
+    assert any('relationship' in i.value for i in app.info)
+    assert any(h.value == 'Scatter plot' for h in app.subheader)

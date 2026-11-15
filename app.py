@@ -1,5 +1,6 @@
 # streamlit ui: wires detect -> rules -> render together.
 # each step is its own function so teammates can edit different steps without collisions.
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -9,7 +10,7 @@ import vl_convert as vlc
 from claims import Finding, caption, check
 from detect import TYPES, apply_types, detect_columns, load_csv
 from finding import suggest_for_finding
-from render import render, render_finding
+from render import render, render_finding, sentence
 from rules import GOAL_DESCRIPTIONS, GOAL_LABELS, GOALS, suggest
 from sources import cite
 
@@ -17,9 +18,9 @@ DATA_DIR = Path(__file__).resolve().parent / "data"
 NO_SAMPLE = "(choose a sample)"
 
 TYPE_HELP = {
-    "categorical": "categorical: labels or groups (e.g. major, yes/no, ratings 1-5)",
-    "numeric": "numeric: measured amounts you can average (e.g. gpa, height)",
-    "date": "date: points in time (e.g. 2024-03-01)",
+    "categorical": "Categorical: labels or groups (e.g. major, yes/no, ratings 1-5)",
+    "numeric": "Numeric: measured amounts you can average (e.g. GPA, height)",
+    "date": "Date: points in time (e.g. 2024-03-01)",
 }
 
 
@@ -56,7 +57,7 @@ def step_data():
         st.error(str(e))
         return None, None
 
-    st.caption(f"**{source}**: {len(df)} rows, {len(df.columns)} columns. here are the first few rows:")
+    st.caption(f"**{source}**: {len(df)} rows, {len(df.columns)} columns. Here are the first few rows:")
     st.dataframe(df.head(8), hide_index=True)
     return df, source
 
@@ -66,7 +67,7 @@ def step_data():
 def step_columns(df: pd.DataFrame, source: str):
     detected = {c["name"]: c for c in detect_columns(df)}
 
-    with st.expander("what we detected for every column", expanded=False):
+    with st.expander("What we detected for every column", expanded=False):
         st.dataframe(
             pd.DataFrame([{"column": c["name"], "type": c["type"], "unique values": c["n_unique"]}
                           for c in detected.values()]),
@@ -74,15 +75,15 @@ def step_columns(df: pd.DataFrame, source: str):
         )
 
     picked = st.multiselect(
-        "which columns hold the finding you want to show?",
+        "Which columns hold the finding you want to show?",
         list(detected), max_selections=2, key=f"cols_{source}",
-        placeholder="pick one or two columns",
+        placeholder="Pick one or two columns",
     )
     if not picked:
-        st.info("pick at least one column. for example, a group column (like major) and a number column (like gpa).")
+        st.info("Pick at least one column, for example a group column (like major) and a number column (like GPA).")
         return None, None
 
-    st.caption("we guessed each column's type. if a guess is wrong, change it: the suggestions depend on it.")
+    st.caption("We guessed each column's type. If a guess is wrong, change it: the suggestions depend on it.")
     overrides = []
     for name in picked:
         c1, c2 = st.columns([1, 2])
@@ -100,10 +101,10 @@ def step_columns(df: pd.DataFrame, source: str):
     for o in overrides:
         info = {**stats[o["name"]], "type": o["type"]}
         if info["n_rows"] == 0:
-            st.warning(f"none of the values in '{o['name']}' could be read as {o['type']}. try a different type.")
+            st.warning(f"None of the values in '{o['name']}' could be read as {o['type']}. Try a different type.")
             return None, None
         if info["n_rows"] < len(df):
-            st.caption(f"note: {len(df) - info['n_rows']} rows in '{o['name']}' are empty or couldn't be read as "
+            st.caption(f"Note: {len(df) - info['n_rows']} rows in '{o['name']}' are empty or couldn't be read as "
                        f"{o['type']}, so they're skipped.")
         selected.append(info)
     return selected, typed
@@ -121,9 +122,16 @@ def step_goal():
     }
     return st.radio(
         "Your question", GOALS, format_func=lambda g: labels[g],
-        captions=[GOAL_DESCRIPTIONS[g] for g in GOALS],
+        captions=[sentence(GOAL_DESCRIPTIONS[g]) for g in GOALS],
         index=None, key="goal", label_visibility="collapsed",
     )
+
+
+def sentences(text):
+    # the rule table's explanations are written in lowercase; show them as proper sentences.
+    # capitalizes the first letter and each letter after ". " except after "e.g." / "i.e."
+    text = sentence(text.replace("_", " "))  # column names read as words: study_hours_per_week
+    return re.sub(r"(?<!e\.g)(?<!i\.e)([.!?] )([a-z])", lambda m: m.group(1) + m.group(2).upper(), text)
 
 
 def show_sources(sources):
@@ -143,15 +151,15 @@ def step_finding(typed, cat, num, source):
                "\"not sure\" and the data will tell you.")
     groups = sorted(typed[cat].dropna().astype(str).unique())
     left, mid, right = st.columns([2, 2, 2])
-    a = left.selectbox("Group", [None] + groups, key=f"find_a_{source}", placeholder="choose a group",
-                       format_func=lambda g: "choose a group" if g is None else g)
+    a = left.selectbox("Group", [None] + groups, key=f"find_a_{source}", placeholder="Choose a group",
+                       format_func=lambda g: "Choose a group" if g is None else g)
     direction = mid.selectbox(
-        "compared with", ["higher", "lower", NOT_SURE], index=2, key=f"find_dir_{source}",
+        "Compared with", ["higher", "lower", NOT_SURE], index=2, key=f"find_dir_{source}",
         format_func=lambda d: {"higher": f"has a higher average {num} than",
                                "lower": f"has a lower average {num} than",
                                NOT_SURE: f"(not sure how its average {num} compares to)"}[d])
     b = right.selectbox("Other group", [None] + [g for g in groups if g != a], key=f"find_b_{source}",
-                        format_func=lambda g: "choose a group" if g is None else g)
+                        format_func=lambda g: "Choose a group" if g is None else g)
     if a is None or b is None:
         st.caption("Or skip this and browse suitable charts below.")
         return None
@@ -218,7 +226,7 @@ def step_finding_results(typed, finding, source):
             st.error(f"PNG export is unavailable: {e}")
     with st.expander("Why some other charts do not fit"):
         for r in plan["ruled_out"]:
-            st.markdown(f"**{r['label']}:** {r['why_not']}")
+            st.markdown(f"**{r['label']}:** {sentences(r['why_not'])}")
             st.caption("Source: " + "; ".join(x["text"] for x in r["sources"]))
 
 
@@ -227,7 +235,7 @@ def step_results(typed, selected, goal, intent=None, summary="mean"):
     st.header("4. Figures that fit")
     st.caption("Suggestions use rules about your question and data. They are guidance, not a validated ranking.")
     if result["message"]:
-        st.warning(result["message"])
+        st.warning(sentences(result["message"]))
     suggestions = result["suggested"]
     if suggestions:
         labels = [s["label"] for s in suggestions]
@@ -250,7 +258,7 @@ def step_results(typed, selected, goal, intent=None, summary="mean"):
                     chart = None
             with right:
                 st.markdown("**Why it fits your question**")
-                st.write(chosen["why"])
+                st.write(sentences(chosen["why"]))
                 st.markdown("**What it emphasizes**")
                 st.write(chosen["emphasis"])
                 st.markdown("**Keep in mind**")
@@ -272,13 +280,13 @@ def step_results(typed, selected, goal, intent=None, summary="mean"):
         if alternatives:
             with st.expander("How the alternatives differ"):
                 for other in alternatives:
-                    st.markdown(f"**{other['label']}** — {other['emphasis']} {other['limit']}")
+                    st.markdown(f"**{other['label']}:** {other['emphasis']} {other['limit']}")
         else:
             st.info("Only one chart fits the supported rules for this question. We won't add an unsuitable alternative just to fill a slot.")
     if result["ruled_out"]:
         with st.expander("Why some other charts do not fit", expanded=not suggestions):
             for r in result["ruled_out"]:
-                st.markdown(f"**{r['label']}:** {r['why_not']}")
+                st.markdown(f"**{r['label']}:** {sentences(r['why_not'])}")
 
 
 def main():
@@ -306,6 +314,13 @@ def main():
     intent, summary, finding = None, "mean", None
     cats = [c for c in selected if c["type"] == "categorical"]
     nums = [c for c in selected if c["type"] == "numeric"]
+    if goal == "comparison" and len(nums) == 2:
+        # two measurements on the same rows: that's a relationship question, not a group comparison
+        a, b = (c["name"].replace("_", " ") for c in nums)
+        st.info(f"Your two columns, {a} and {b}, are both measurements of the same rows, so comparing them means "
+                f"asking whether one goes up or down with the other. That's a relationship, so here are relationship "
+                f"figures. To compare groups instead, pick a category column (like major) and one number column.")
+        goal = "relationship"
     if goal == "comparison" and cats and nums:
         finding = step_finding(typed, cats[0]["name"], nums[0]["name"], source)
     if goal == "comparison" and cats and nums and finding is None:

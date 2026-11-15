@@ -45,3 +45,17 @@ def test_comparing_two_measurements_routes_to_relationship():
     assert not app.exception
     assert any('relationship' in i.value for i in app.info)
     assert any(h.value == 'Scatter plot' for h in app.subheader)
+
+
+def test_redirects_and_new_combinations():
+    from app import redirect_goal
+    from rules import suggest
+    col = lambda n, t: {"name": n, "type": t, "n_unique": 6, "n_rows": 60, "min": 0.0}
+    assert redirect_goal("relationship", [col("major", "categorical"), col("gpa", "numeric")]) == "comparison"
+    assert redirect_goal("comparison", [col("month", "date"), col("temp", "numeric")]) == "trend"
+    assert redirect_goal("distribution", [col("a", "numeric"), col("b", "numeric")]) == "relationship"
+    assert redirect_goal("comparison", [col("major", "categorical"), col("gpa", "numeric")]) == "comparison"
+    figs = lambda cols, goal: [s["figure"] for s in suggest(cols, goal)["suggested"]]
+    assert figs([col("a", "categorical"), col("b", "categorical")], "relationship") == ["stacked_bar"]
+    assert "bar" in figs([col("major", "categorical")], "distribution")
+    assert figs([col("day", "date")], "trend") == ["line"]

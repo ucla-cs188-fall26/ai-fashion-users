@@ -134,6 +134,30 @@ def sentences(text):
     return re.sub(r"(?<!e\.g)(?<!i\.e)([.!?] )([a-z])", lambda m: m.group(1) + m.group(2).upper(), text)
 
 
+def redirect_goal(goal, selected):
+    # some goal + column combinations are really a different question. instead of a dead end,
+    # explain the mismatch and answer the question the columns can actually support.
+    names = lambda t: [c["name"].replace("_", " ") for c in selected if c["type"] == t]
+    cats, nums, dates = names("categorical"), names("numeric"), names("date")
+    to, why = None, None
+    if goal == "comparison" and len(nums) == 2:
+        to, why = "relationship", (f"Your two columns, {nums[0]} and {nums[1]}, are both measurements of the same rows, so "
+                                   f"comparing them means asking whether one goes up or down with the other. That's a relationship.")
+    elif goal == "relationship" and len(cats) == 1 and len(nums) == 1:
+        to, why = "comparison", (f"{cats[0].capitalize()} is a set of groups, so a relationship between it and {nums[0]} means "
+                                 f"comparing {nums[0]} across those groups. That's a comparison.")
+    elif goal in ("comparison", "relationship") and len(dates) == 1 and len(nums) == 1:
+        to, why = "trend", (f"{dates[0].capitalize()} is time, so comparing {nums[0]} across it means asking how {nums[0]} "
+                            f"changes over time. That's a trend.")
+    elif goal == "distribution" and len(nums) == 2:
+        to, why = "relationship", (f"A spread is about one measurement at a time. To see how {nums[0]} and {nums[1]} are spread "
+                                   f"together, a relationship figure shows both; to see one on its own, pick just that column.")
+    if to:
+        st.info(why + " Here are figures for that question instead.")
+        return to
+    return goal
+
+
 def show_sources(sources):
     # one line per source; links open the paper
     lines = [f"- [{x['text']}]({x['url']})" if x["url"] else f"- {x['text']}" for x in sources]
@@ -314,13 +338,7 @@ def main():
     intent, summary, finding = None, "mean", None
     cats = [c for c in selected if c["type"] == "categorical"]
     nums = [c for c in selected if c["type"] == "numeric"]
-    if goal == "comparison" and len(nums) == 2:
-        # two measurements on the same rows: that's a relationship question, not a group comparison
-        a, b = (c["name"].replace("_", " ") for c in nums)
-        st.info(f"Your two columns, {a} and {b}, are both measurements of the same rows, so comparing them means "
-                f"asking whether one goes up or down with the other. That's a relationship, so here are relationship "
-                f"figures. To compare groups instead, pick a category column (like major) and one number column.")
-        goal = "relationship"
+    goal = redirect_goal(goal, selected)
     if goal == "comparison" and cats and nums:
         finding = step_finding(typed, cats[0]["name"], nums[0]["name"], source)
     if goal == "comparison" and cats and nums and finding is None:

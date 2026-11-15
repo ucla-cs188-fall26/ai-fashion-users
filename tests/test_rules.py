@@ -115,10 +115,10 @@ def test_line_score_lowered_with_few_time_points():
 
 # ---------- edge cases + invariants ----------
 
-def test_relationship_with_two_categories_explains_what_is_needed():
+def test_relationship_with_two_categories_uses_100_percent_stacked_bars():
+    # two category columns can be related (e.g. major and year): show how the mix differs between groups
     r = suggest([col("a", "categorical", 3, 50), col("b", "categorical", 4, 50)], "relationship")
-    assert r["suggested"] == []
-    assert "two number columns" in r["message"]
+    assert [s["figure"] for s in r["suggested"]] == ["stacked_bar"]
     assert "Scatter plot" in figures(r, "ruled_out")
 
 

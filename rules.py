@@ -84,6 +84,8 @@ class Rule:
 
 def fit_bar(ctx):
     s = ctx.shape()
+    if ctx.goal == "distribution" and s != "C":
+        return "for how a number is spread out, a histogram or box plot shows the shape; bars of averages hide it."
     if s == "CN":
         cat, num = ctx.cats[0], ctx.nums[0]
         repeated = num["n_rows"] > cat["n_unique"]
@@ -102,6 +104,9 @@ def fit_grouped_bar(ctx):
 
 def fit_line(ctx):
     s = ctx.shape()
+    if s == "D":
+        d = ctx.dates[0]
+        return {"x": d["name"], "y": None, "agg": "count", "group_col": d["name"]}
     if s == "DN":
         d, n = ctx.dates[0], ctx.nums[0]
         return {"x": d["name"], "y": n["name"], "agg": "mean" if n["n_rows"] > d["n_unique"] else None, "group_col": d["name"]}
@@ -167,6 +172,8 @@ def fit_parts(ctx):
 
 
 def fit_stacked(ctx):
+    if ctx.goal == "relationship" and ctx.shape() != "CC":
+        return "for a relationship, 100% stacked bars need two category columns (e.g. major and year)."
     if ctx.shape() == "CC":
         a, b = sorted(ctx.cats, key=lambda c: -c["n_unique"])
         return {"x": a["name"], "y": None, "color": b["name"], "agg": "count", "group_col": b["name"], "normalize": True}
@@ -229,7 +236,7 @@ def line_wrong_for_relationship(ctx):
 RULES = [
     Rule(
         id="bar", figure="bar", label="Bar chart",
-        goals={"comparison": 0.95},
+        goals={"comparison": 0.95, "distribution": 0.9},
         fit=fit_bar,
         hard=[too_many_groups(20, "with {k} groups the bars get too thin to read. try filtering to the groups you care about most.")],
         soft=[crowded_groups(10, 0.2, "with {k} groups it's getting crowded; sorting the bars or keeping the top 10 helps.")],
@@ -251,7 +258,7 @@ RULES = [
         fit=fit_line,
         soft=[lambda ctx, r: ((0.3, f"there are only {_groups(ctx, r)} time points, so there's barely a trend to show.")
                               if _groups(ctx, r) < 4 else None)],
-        why=lambda ctx, r, g: (f"line charts show how {r['y']} changes across {r['x']}: the slope makes rises and drops easy to spot"
+        why=lambda ctx, r, g: (f"line charts show how {r['y'] or 'the number of rows'} changes across {r['x']}: the slope makes rises and drops easy to spot"
                                + (f" (each point is the average {r['y']} for that {r['x']})." if r.get("agg") == "mean" else ".")),
         wrong_for={"comparison": line_wrong_for_categories, "relationship": line_wrong_for_relationship},
     ),
@@ -331,7 +338,7 @@ RULES = [
     ),
     Rule(
         id="stacked_bar", figure="stacked_bar", label="Stacked bar (100%)",
-        goals={"part_to_whole": 0.85},
+        goals={"part_to_whole": 0.85, "relationship": 0.9},
         fit=fit_stacked,
         hard=[too_many_groups(8, "{k} segments is too many to tell apart by color; a regular bar chart works better.")],
         soft=[lambda ctx, r: ((0.3, f"this adds up {r['y']} within each {r['color']}; only meaningful if {r['y']} values add up to a real total.")

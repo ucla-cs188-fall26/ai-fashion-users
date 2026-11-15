@@ -36,11 +36,20 @@
 - **Why:** one participant said "I did know what I wanted to show. I just didn't know how to make it show it though." Our expert's first question was "what are you comparing?" Tea works the same way: it takes a hypothesis, not a test name. Pickers instead of free text keep it predictable (same reasoning as decision 1). "Not sure" lets students who don't know the direction still get an answer.
 
 ## 8. Check the finding against the data before drawing it
-- **Decision:** a bootstrap 95% interval for the gap in averages plus Cohen's d, reported as a plain-language verdict (supported / opposite / can't tell apart yet) with the numbers underneath.
-- **Alternative rejected:** full Tea-style test selection (normality and variance checks, then t-test or Mann-Whitney) for this prototype.
-- **Why:** bootstrapping is Tea's own fallback when no standard test fits, and it needs no normality assumption. Tea also reports effect sizes and recommends focusing on them. We report the gap and its uncertainty rather than a pass/fail stamp so the tool doesn't encourage fishing for significance. Tea-style test selection is planned for the final.
+- **Decision:** a 95% Welch's t confidence interval for the gap in averages plus Cohen's d, reported as a plain-language verdict (supported / opposite / can't tell apart yet) with the numbers underneath.
+- **Alternatives rejected:** (a) a bootstrap percentile interval, our first version; (b) full Tea-style test selection for this prototype.
+- **Why:** Welch's t is one of the tests Tea selects among and doesn't assume equal variances. "The interval excludes zero" is exactly a two-sided Welch test at 0.05. We dropped the bootstrap because the percentile interval is too narrow for small samples (Hesterberg 2015, The American Statistician), and student datasets are often small. Tea reports effect sizes and recommends focusing on them, so we show d. We report the gap and its uncertainty rather than a pass/fail stamp so the tool doesn't encourage fishing for significance. Tea-style assumption checks (normality, then Mann-Whitney when needed) are planned for the final.
 
-## 9. Small gaps get dots with intervals, not bars
-- **Decision:** when the gap is under 10% of the taller bar (team heuristic), or the data can't separate the groups, dots with 95% intervals come first; otherwise highlighted bars come first.
-- **Alternative rejected:** always bars for comparisons.
-- **Why:** bars encode length, so they must start at zero, which makes small real gaps look flat. Position on a common scale is the most accurately read encoding (Cleveland & McGill) and doesn't need zero. The two groups are placed side by side because arrangement steers which comparison people make (Xiong et al. 2021), and only they are colored because readers take the most prominent feature as the takeaway (Kim et al. 2021).
+## 9. Show every value, with averages and 95% intervals, before bars
+- **Decision:** for a finding about a continuous measure, the first figure shows each individual value as a small dot, plus each group's average and 95% confidence interval. A bar chart of averages stays available as a familiar alternative, with its limits stated.
+- **Alternative rejected:** bars of averages first (our first version picked bars when the gap was large).
+- **Why:** bar graphs of averages hide the distribution of continuous data, and many different datasets produce the same bars; research guides recommend showing individual values, especially for small samples (Weissgerber et al. 2015, PLOS Biology). Position on a common scale is the most accurately read encoding (Cleveland & McGill 1984), and unlike bars it doesn't need a zero baseline (Correll et al. 2020). The two groups sit side by side because arrangement steers which comparison people make (Xiong et al. 2021), and only they are colored (color with purpose: Rougier et al. 2014).
+
+## 10. A baseline style for every figure, from published guides
+- **Decision:** color-blind-safe palette (Wong 2011), color used only for the groups that matter and everything else gray, light gridlines and no decoration, fonts larger than library defaults, sentence-case titles, readable axis labels, and a ready-to-use caption that says what the marks and error bars show and gives n per group.
+- **Alternative rejected:** charting-library defaults.
+- **Why:** "Ten Simple Rules for Better Figures" (Rougier et al. 2014): identify the message, don't trust defaults, use color effectively, avoid chartjunk, and captions are not optional. Error bars must say what they show (Cumming & Finch 2005).
+
+## 11. Removed an unsupported rule
+- **Decision:** removed the rule "no bars when one average is negative and the other positive".
+- **Why:** bars measured from zero encode negative and positive values correctly; no source supports that rule. Every rule left in the code cites a paper, our expert interview, or is labeled as a team heuristic.

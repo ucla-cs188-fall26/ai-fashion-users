@@ -34,4 +34,4 @@ def test_stated_finding_is_checked_and_drawn():
     app.selectbox(key='find_b_grades_by_major.csv').select('english').run()
     assert not app.exception
     assert any('supports this' in s.value for s in app.success)
-    assert any(h.value == 'Bar chart, your groups highlighted' for h in app.subheader)
+    assert any(h.value == 'Every value, with averages and 95% intervals' for h in app.subheader)

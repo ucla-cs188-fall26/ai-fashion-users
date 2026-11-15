@@ -456,14 +456,14 @@ LIMITS = {
 # where each rule's constraints come from (see sources.py). thresholds such as "6 slices" or
 # "20 values for a histogram" are our own conventions, so those rules also cite "team".
 RULE_SOURCES = {
-    "bar": ("zacks", "cleveland", "team"),
+    "bar": ("zacks", "cleveland", "weissgerber", "team"),
     "grouped_bar": ("cleveland", "team"),
-    "line": ("zacks", "mackinlay"),
+    "line": ("zacks", "mackinlay", "correll"),
     "time_bar": ("zacks", "team"),
-    "histogram": ("team",),
-    "box": ("team",),
-    "strip": ("team",),
+    "histogram": ("weissgerber", "team"),
+    "box": ("weissgerber", "team"),
+    "strip": ("weissgerber", "team"),
     "scatter": ("mackinlay",),
-    "pie": ("cleveland", "mackinlay", "team"),
+    "pie": ("cleveland", "mackinlay", "rougier", "team"),
     "stacked_bar": ("cleveland", "mackinlay", "team"),
 }

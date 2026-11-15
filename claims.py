@@ -1,17 +1,23 @@
 # claim check: does the data support the student's stated finding?
-# v1 compares the average of one measure between two groups.
-# method: bootstrap 95% interval for the gap in means (tea's own fallback when no
-# standard test fits) plus cohen's d (tea reports it and recommends focusing on effect size).
-# v2 (planned): tea-style assumption checks to pick student's t, welch's t, or mann-whitney u.
+# v1 compares the average of one measure between two independent groups.
+#
+# method: welch's t confidence interval for the gap in means (one of the tests tea selects
+# among; it does not assume equal variances), plus cohen's d (tea reports it and recommends
+# focusing on effect size). we use a t-interval rather than a bootstrap percentile interval
+# because the percentile interval is too narrow for small samples (hesterberg 2015), and
+# student datasets are often small. the verdict "the 95% interval excludes zero" is exactly
+# a two-sided welch t-test at the 0.05 level.
+# v2 (planned): tea-style assumption checks (normality, sample size) to switch to
+# mann-whitney u when a t-interval isn't appropriate.
 from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
-N_BOOT = 10_000
-SEED = 188  # fixed so the same data always gives the same interval
-SMALL_N = 10  # below this many values per group, intervals are rough
+LEVEL = 0.95
+SMALL_N = 10  # below this many values per group, t-intervals lean on normality (tea would check it)
 
 DIRECTIONS = ("higher", "lower", None)
 
@@ -26,7 +32,7 @@ class Finding:
 
 
 def size_label(d: float) -> str:
-    # cohen's conventions (0.2 / 0.5 / 0.8). conventions, not findings.
+    # cohen's conventions (0.2 / 0.5 / 0.8). cohen himself called these rough conventions.
     if np.isnan(d):
         return "unknown"
     d = abs(d)
@@ -39,15 +45,29 @@ def size_label(d: float) -> str:
     return "large"
 
 
-def _values(df: pd.DataFrame, f: Finding, group: str) -> np.ndarray:
-    s = df.loc[df[f.group_col].astype(str) == str(group), f.measure]
+def _values(df: pd.DataFrame, group_col: str, measure: str, group) -> np.ndarray:
+    s = df.loc[df[group_col].astype(str) == str(group), measure]
     return pd.to_numeric(s, errors="coerce").dropna().to_numpy(dtype=float)
 
 
-def _boot_means(x: np.ndarray, rng: np.random.Generator) -> np.ndarray:
-    # resample with replacement N_BOOT times and return the mean of each resample
-    idx = rng.integers(0, len(x), size=(N_BOOT, len(x)))
-    return x[idx].mean(axis=1)
+def welch_interval(xa: np.ndarray, xb: np.ndarray, level: float = LEVEL) -> tuple[float, float, float]:
+    # gap in means with a welch t interval (welch-satterthwaite degrees of freedom)
+    va, vb = xa.var(ddof=1) / len(xa), xb.var(ddof=1) / len(xb)
+    gap = xa.mean() - xb.mean()
+    se = np.sqrt(va + vb)
+    if se == 0:
+        return float(gap), float(gap), float(gap)
+    df = (va + vb) ** 2 / (va ** 2 / (len(xa) - 1) + vb ** 2 / (len(xb) - 1))
+    t = stats.t.ppf(0.5 + level / 2, df)
+    return float(gap), float(gap - t * se), float(gap + t * se)
+
+
+def mean_interval(x: np.ndarray, level: float = LEVEL) -> tuple[float, float]:
+    # t interval for one group's mean
+    if len(x) < 2:
+        return float(x[0]), float(x[0])
+    half = stats.t.ppf(0.5 + level / 2, len(x) - 1) * x.std(ddof=1) / np.sqrt(len(x))
+    return float(x.mean() - half), float(x.mean() + half)
 
 
 def cohens_d(xa: np.ndarray, xb: np.ndarray) -> float:
@@ -59,17 +79,13 @@ def cohens_d(xa: np.ndarray, xb: np.ndarray) -> float:
 
 
 def group_intervals(df: pd.DataFrame, group_col: str, measure: str, groups: list) -> pd.DataFrame:
-    # mean and bootstrap 95% interval of the mean for each group, used to draw dots with whiskers
-    rng = np.random.default_rng(SEED)
+    # mean and 95% t interval of the mean for each group, used to draw dots with interval lines
     rows = []
     for g in groups:
-        x = pd.to_numeric(df.loc[df[group_col].astype(str) == str(g), measure], errors="coerce").dropna().to_numpy(float)
+        x = _values(df, group_col, measure, g)
         if len(x) == 0:
             continue
-        if len(x) > 1:
-            lo, hi = np.percentile(_boot_means(x, rng), [2.5, 97.5])
-        else:
-            lo = hi = x[0]
+        lo, hi = mean_interval(x)
         rows.append({group_col: str(g), "mean": x.mean(), "low": lo, "high": hi, "n": len(x)})
     return pd.DataFrame(rows)
 
@@ -80,15 +96,12 @@ def check(df: pd.DataFrame, f: Finding) -> dict:
         raise ValueError("direction must be 'higher', 'lower', or None")
     if str(f.a) == str(f.b):
         raise ValueError("pick two different groups to compare.")
-    xa, xb = _values(df, f, f.a), _values(df, f, f.b)
+    xa, xb = _values(df, f.group_col, f.measure, f.a), _values(df, f.group_col, f.measure, f.b)
     if len(xa) < 2 or len(xb) < 2:
         raise ValueError(f"each group needs at least 2 values of {f.measure} to compare "
                          f"({f.a}: {len(xa)}, {f.b}: {len(xb)}).")
 
-    rng = np.random.default_rng(SEED)
-    gaps = _boot_means(xa, rng) - _boot_means(xb, rng)
-    gap = float(xa.mean() - xb.mean())
-    low, high = (float(v) for v in np.percentile(gaps, [2.5, 97.5]))
+    gap, low, high = welch_interval(xa, xb)
     d = cohens_d(xa, xb)
 
     # what the data says on its own, regardless of the claim
@@ -125,8 +138,10 @@ def check(df: pd.DataFrame, f: Finding) -> dict:
 def message(f: Finding, data_says: str, gap: float) -> str:
     # the one-sentence finding, used as the figure title (titles drive what readers remember)
     if data_says == "unclear":
-        return f"No clear difference in average {f.measure} between {f.a} and {f.b}"
-    return f"{f.a} has a {data_says} average {f.measure} than {f.b} (by {abs(gap):.2f})"
+        text = f"no clear difference in average {f.measure} between {f.a} and {f.b}"
+    else:
+        text = f"{f.a} has a {data_says} average {f.measure} than {f.b} (by {abs(gap):.2f})"
+    return text[0].upper() + text[1:]
 
 
 def _headline(f: Finding, status: str, data_says: str) -> str:
@@ -138,15 +153,30 @@ def _headline(f: Finding, status: str, data_says: str) -> str:
                 f"not {f.direction}.")
     if status == "found":
         return f"Your data shows that {f.a} has a {data_says} average {f.measure} than {f.b}."
-    # unclear
+    # unclear: absence of evidence, not evidence of no difference
     if claimed:
         return (f"Your data can't tell these groups apart yet, so it doesn't support \"{claimed}\". "
-                f"The gap could plausibly be zero or go either way.")
+                f"The true gap could plausibly be zero or go either way.")
     return f"Your data can't tell {f.a} and {f.b} apart on average {f.measure} yet."
 
 
 def _detail(f, gap, low, high, d, na, nb) -> str:
     return (f"Average {f.measure}: {f.a} minus {f.b} = {gap:+.2f} "
-            f"(95% interval {low:+.2f} to {high:+.2f}). "
+            f"(95% confidence interval {low:+.2f} to {high:+.2f}). "
             f"Gap size (Cohen's d) = {d:+.2f}, {size_label(d)}. "
             f"Based on {na} values for {f.a} and {nb} for {f.b}.")
+
+
+def caption(result: dict, figure: str, show_points: bool) -> str:
+    # a ready-to-use figure caption: what the marks mean, the sample sizes, and the numbers.
+    # captions are not optional (rougier et al. 2014), and error bars must say what they show
+    # (cumming & finch 2005).
+    f = result["finding"]
+    if figure == "dot_ci":
+        marks = (f"Each small dot is one value of {f.measure}; large dots" if show_points else "Dots")
+        marks += f" show the average for each {f.group_col}, and lines show 95% confidence intervals for those averages."
+    else:
+        marks = f"Bars show the average {f.measure} for each {f.group_col}."
+    return (f"{marks} {f.a}: n = {result['n_a']}; {f.b}: n = {result['n_b']}. "
+            f"Difference in averages ({f.a} minus {f.b}) = {result['gap']:.2f}, "
+            f"95% CI [{result['low']:.2f}, {result['high']:.2f}] (Welch's t), Cohen's d = {result['d']:.2f}.")

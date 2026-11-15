@@ -31,12 +31,12 @@ The app opens at http://localhost:8501.
 1. pick "grades_by_major.csv" from the example dropdown, then click **Continue to your question**
 2. choose **Compare groups**, then select the columns `major` and `gpa`
 3. under **State your finding**, pick `chemistry`, `has a lower average gpa than`, `english`
-4. click **See suitable figures**: the data supports the finding (gap -0.40, 95% interval -0.58 to -0.20), and you get a bar chart with both groups highlighted and the finding as its title
+4. click **See suitable figures**: the data supports the finding (gap -0.40, 95% CI -0.60 to -0.19), and you get every value plus each group's average and 95% interval, both groups highlighted, the finding as the title, and a suggested caption
 5. open "How we checked this", "Where these rules come from", and "Why some other charts do not fit"
 6. click **Download this figure as PNG**
 
 Two more findings to try with the same data:
-- `computer science` / `not sure` / `english`: the data can't tell them apart (the interval crosses zero), so you get dots with intervals that honestly overlap
+- `computer science` / `not sure` / `english`: the data can't tell them apart (the interval for the gap crosses zero), and the title says so
 - `english` / `has a lower average gpa than` / `chemistry`: the data shows the opposite, and the figure is titled with what the data actually shows
 
 Other scenarios to try:
@@ -54,7 +54,7 @@ pytest
 |---|---|
 | `app.py` | streamlit ui, one function per step |
 | `detect.py` | loads csvs, detects column types (categorical / numeric / date), applies type overrides |
-| `claims.py` | checks a stated finding against the data: bootstrap 95% interval for the gap + Cohen's d |
+| `claims.py` | checks a stated finding against the data: Welch's t 95% interval for the gap + Cohen's d |
 | `finding.py` | picks figures for a stated finding (hard + soft constraints) and the charts ruled out |
 | `sources.py` | where every rule comes from |
 | `rules.py` | the rule table and the `suggest()` engine for browsing by goal |

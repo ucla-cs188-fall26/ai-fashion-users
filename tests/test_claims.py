@@ -40,11 +40,23 @@ def test_not_sure_lets_data_decide():
     assert r["status"] == "found" and r["data_says"] == "higher"
 
 
-def test_interval_close_to_welch_t_interval():
-    df = two_groups(3.0, 3.3, n=40)
-    r = check(df, Finding("y", "g", "a", "b", None))
-    ci = stats.ttest_ind(df[df.g == "a"].y, df[df.g == "b"].y, equal_var=False).confidence_interval()
-    assert abs(r["low"] - ci.low) < 0.03 and abs(r["high"] - ci.high) < 0.03
+def test_interval_matches_scipy_welch_and_verdict_matches_test():
+    for mb in (3.05, 3.15, 3.3):
+        df = two_groups(3.0, mb, n=15)
+        r = check(df, Finding("y", "g", "a", "b", None))
+        res = stats.ttest_ind(df[df.g == "a"].y, df[df.g == "b"].y, equal_var=False)
+        ci = res.confidence_interval()
+        assert r["low"] == pytest.approx(ci.low) and r["high"] == pytest.approx(ci.high)
+        assert (r["status"] != "unclear") == (res.pvalue < 0.05)
+
+
+def test_group_interval_matches_t_interval():
+    from claims import group_intervals
+    df = two_groups(3.0, 3.3, n=12)
+    gi = group_intervals(df, "g", "y", ["a"]).iloc[0]
+    x = df[df.g == "a"].y
+    lo, hi = stats.t.interval(0.95, len(x) - 1, loc=x.mean(), scale=stats.sem(x))
+    assert gi["low"] == pytest.approx(lo) and gi["high"] == pytest.approx(hi)
 
 
 def test_same_data_same_answer():
@@ -67,18 +79,22 @@ def test_rejects_bad_input():
         check(df.head(31), Finding("y", "g", "a", "b", None))  # only 1 value in b
 
 
-def test_small_gap_prefers_dots_large_gap_prefers_bars():
-    small = suggest_for_finding(check(two_groups(3.40, 3.45), Finding("y", "g", "a", "b", None)), 2)
-    large = suggest_for_finding(check(two_groups(2.0, 3.5), Finding("y", "g", "a", "b", None)), 2)
-    assert small["suggested"][0]["figure"] == "dot_ci"
-    assert large["suggested"][0]["figure"] == "bar_focus"
+def test_showing_the_data_comes_first_bars_stay_available():
+    for gap in (0.05, 1.5):
+        plan = suggest_for_finding(check(two_groups(2.0, 2.0 + gap), Finding("y", "g", "a", "b", None)), 2)
+        assert [s["figure"] for s in plan["suggested"]] == ["dot_ci", "bar_focus"]
 
 
-def test_mixed_signs_rule_out_bars():
-    r = check(two_groups(-1.0, 1.0), Finding("y", "g", "a", "b", None))
-    plan = suggest_for_finding(r, 2)
-    assert [s["figure"] for s in plan["suggested"]] == ["dot_ci"]
-    assert any("negative" in x["why_not"] for x in plan["ruled_out"])
+def test_large_groups_hide_individual_points():
+    big = suggest_for_finding(check(two_groups(2.0, 2.5, n=300), Finding("y", "g", "a", "b", None)), 2)
+    assert big["show_points"] is False
+
+
+def test_caption_states_marks_n_and_interval():
+    from claims import caption
+    r = check(two_groups(2.0, 3.5, n=20), Finding("y", "g", "a", "b", "lower"))
+    text = caption(r, "dot_ci", True)
+    assert "n = 20" in text and "95% CI" in text and "confidence intervals" in text
 
 
 def test_every_suggestion_and_exclusion_names_a_source():
@@ -92,3 +108,4 @@ def test_finding_figures_render_with_message_title(figure):
     r = check(df, Finding("y", "g", "a", "b", "lower"))
     spec = render_finding(df, r, figure).to_dict()
     assert spec["title"]["text"] == r["message"]
+    assert r["message"][0].isupper()

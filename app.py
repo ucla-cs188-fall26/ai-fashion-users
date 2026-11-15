@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 import vl_convert as vlc
 
-from claims import Finding, check
+from claims import Finding, caption, check
 from detect import TYPES, apply_types, detect_columns, load_csv
 from finding import suggest_for_finding
 from render import render, render_finding
@@ -174,13 +174,15 @@ def step_finding_results(typed, finding, source):
         st.caption("Heads up: with fewer than 10 values in a group, the interval is rough. Treat it as a first look.")
     with st.expander("How we checked this"):
         st.markdown(
-            f"We compared the average {finding.measure} of {finding.a} and {finding.b}. To see how sure we can be, we "
-            "resampled each group 10,000 times and took the middle 95% of the gaps we got (a bootstrap interval). "
-            "If that interval stays on one side of zero, the data supports a difference in that direction. "
-            "We also report Cohen's d, the gap measured in units of how spread out the values are "
-            "(0.2 small, 0.5 medium, 0.8 large, by convention). This is a first check, not a full analysis: "
-            "it compares averages only and doesn't adjust for other variables.")
-        show_sources(cite("tea"))
+            f"We compared the average {finding.measure} of {finding.a} and {finding.b} and computed a 95% confidence "
+            "interval for the gap using Welch's t, a standard method that doesn't assume both groups vary equally. "
+            "If the whole interval is on one side of zero, the data supports a difference in that direction "
+            "(the same as a two-sided Welch's t-test at the 0.05 level). We also report Cohen's d, the gap measured "
+            "in units of how spread out the values are (0.2 small, 0.5 medium, 0.8 large, by convention).\n\n"
+            "This is a first check, not a full analysis: it compares two averages, assumes the values are "
+            "independent, and doesn't adjust for other variables. Checking many pairs one after another raises the "
+            "chance of a fluke, so decide on your finding before you check it.")
+        show_sources(cite("tea", "hesterberg"))
 
     n_groups = typed[finding.group_col].nunique()
     plan = suggest_for_finding(result, n_groups)
@@ -188,7 +190,7 @@ def step_finding_results(typed, finding, source):
     choice = st.radio("Figures that show this finding", labels, horizontal=True,
                       key=f"find_fig_{source}_{finding.a}_{finding.b}")
     chosen = plan["suggested"][labels.index(choice)]
-    show_others = n_groups > 2 and st.checkbox(f"Also show the other {n_groups - 2} groups (muted)",
+    show_others = n_groups > 2 and st.checkbox(f"Also show the other {n_groups - 2} groups (in gray)",
                                                key=f"find_others_{source}")
     with st.container(border=True):
         st.subheader(chosen["label"])
@@ -198,7 +200,7 @@ def step_finding_results(typed, finding, source):
             st.caption("The title states what your data shows, not your original claim.")
         left, right = st.columns([2, 1])
         with left:
-            chart = render_finding(typed, result, chosen["figure"], show_others)
+            chart = render_finding(typed, result, chosen["figure"], show_others, plan["show_points"])
             st.altair_chart(chart, theme=None)
         with right:
             st.markdown("**Why it fits your finding**")
@@ -207,8 +209,10 @@ def step_finding_results(typed, finding, source):
             st.write(chosen["emphasis"])
             st.markdown("**Keep in mind**")
             st.write(chosen["limit"])
+        st.markdown("**Suggested caption** (every figure needs one)")
+        st.code(caption(result, chosen["figure"], plan["show_points"]), language=None, wrap_lines=True)
         with st.expander("Where these rules come from"):
-            show_sources(chosen["sources"] + cite("kong"))
+            show_sources(chosen["sources"] + cite("kong", "rougier", "wong"))
         try:
             st.download_button("Download this figure as PNG", png_bytes(chart.to_json()),
                                file_name=f"{chosen['figure']}.png", mime="image/png", type="primary")

@@ -53,3 +53,8 @@
 ## 11. Removed an unsupported rule
 - **Decision:** removed the rule "no bars when one average is negative and the other positive".
 - **Why:** bars measured from zero encode negative and positive values correctly; no source supports that rule. Every rule left in the code cites a paper, our expert interview, or is labeled as a team heuristic.
+
+## 12. One scrolling page with numbered steps
+- **Decision:** go back to Anusha's original layout: steps 1-4 on one scrolling page, Streamlit's default look, a narrower centered page, and each figure's explanation below it. This replaces the stage tabs, collapsible step sections, and custom banner from decision 6; everything else from decision 6 stays (one selected figure at a time, alternatives and exclusions in expanders).
+- **Alternative rejected:** keeping both the stage tabs and scrolling.
+- **Why:** having two ways to move through the same page was redundant and confusing. The plain layout keeps attention on the data, the finding, and the figure.

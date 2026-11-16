@@ -5,6 +5,8 @@
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
+from sources import cite
+
 GOALS = ["comparison", "trend", "distribution", "relationship", "part_to_whole"]
 
 GOAL_LABELS = {
@@ -82,6 +84,8 @@ class Rule:
 
 def fit_bar(ctx):
     s = ctx.shape()
+    if ctx.goal == "distribution" and s != "C":
+        return "for how a number is spread out, a histogram or box plot shows the shape; bars of averages hide it."
     if s == "CN":
         cat, num = ctx.cats[0], ctx.nums[0]
         repeated = num["n_rows"] > cat["n_unique"]
@@ -100,6 +104,9 @@ def fit_grouped_bar(ctx):
 
 def fit_line(ctx):
     s = ctx.shape()
+    if s == "D":
+        d = ctx.dates[0]
+        return {"x": d["name"], "y": None, "agg": "count", "group_col": d["name"]}
     if s == "DN":
         d, n = ctx.dates[0], ctx.nums[0]
         return {"x": d["name"], "y": n["name"], "agg": "mean" if n["n_rows"] > d["n_unique"] else None, "group_col": d["name"]}
@@ -165,6 +172,8 @@ def fit_parts(ctx):
 
 
 def fit_stacked(ctx):
+    if ctx.goal == "relationship" and ctx.shape() != "CC":
+        return "for a relationship, 100% stacked bars need two category columns (e.g. major and year)."
     if ctx.shape() == "CC":
         a, b = sorted(ctx.cats, key=lambda c: -c["n_unique"])
         return {"x": a["name"], "y": None, "color": b["name"], "agg": "count", "group_col": b["name"], "normalize": True}
@@ -227,7 +236,7 @@ def line_wrong_for_relationship(ctx):
 RULES = [
     Rule(
         id="bar", figure="bar", label="Bar chart",
-        goals={"comparison": 0.95},
+        goals={"comparison": 0.95, "distribution": 0.9},
         fit=fit_bar,
         hard=[too_many_groups(20, "with {k} groups the bars get too thin to read. try filtering to the groups you care about most.")],
         soft=[crowded_groups(10, 0.2, "with {k} groups it's getting crowded; sorting the bars or keeping the top 10 helps.")],
@@ -249,7 +258,7 @@ RULES = [
         fit=fit_line,
         soft=[lambda ctx, r: ((0.3, f"there are only {_groups(ctx, r)} time points, so there's barely a trend to show.")
                               if _groups(ctx, r) < 4 else None)],
-        why=lambda ctx, r, g: (f"line charts show how {r['y']} changes across {r['x']}: the slope makes rises and drops easy to spot"
+        why=lambda ctx, r, g: (f"line charts show how {r['y'] or 'the number of rows'} changes across {r['x']}: the slope makes rises and drops easy to spot"
                                + (f" (each point is the average {r['y']} for that {r['x']})." if r.get("agg") == "mean" else ".")),
         wrong_for={"comparison": line_wrong_for_categories, "relationship": line_wrong_for_relationship},
     ),
@@ -329,7 +338,7 @@ RULES = [
     ),
     Rule(
         id="stacked_bar", figure="stacked_bar", label="Stacked bar (100%)",
-        goals={"part_to_whole": 0.85},
+        goals={"part_to_whole": 0.85, "relationship": 0.9},
         fit=fit_stacked,
         hard=[too_many_groups(8, "{k} segments is too many to tell apart by color; a regular bar chart works better.")],
         soft=[lambda ctx, r: ((0.3, f"this adds up {r['y']} within each {r['color']}; only meaningful if {r['y']} values add up to a real total.")
@@ -362,7 +371,8 @@ def suggest(columns: list[dict], goal: str, intent: str | None = None, summary: 
     def rule_out(rule, reason):
         if rule.label not in seen:
             seen.add(rule.label)
-            ruled_out.append({"figure": rule.figure, "label": rule.label, "why_not": reason})
+            ruled_out.append({"figure": rule.figure, "label": rule.label, "why_not": reason,
+                              "sources": cite(*RULE_SOURCES[rule.id])})
 
     for rule in RULES:
         # goal doesn't match: only mention it if it's a common wrong choice for this data
@@ -404,7 +414,7 @@ def suggest(columns: list[dict], goal: str, intent: str | None = None, summary: 
         if roles.get("agg") == "median":
             why = why.replace("average", "median")
         if notes:
-            why += " heads up: " + " ".join(notes)
+            why += " Heads up: " + " ".join(notes)
 
         suggested.append({
             "limit": LIMITS[rule.figure],
@@ -418,10 +428,11 @@ def suggest(columns: list[dict], goal: str, intent: str | None = None, summary: 
             "normalize": roles.get("normalize", False),
             "score": round(max(score, 0.0), 2),
             "why": why,
+            "sources": cite(*RULE_SOURCES[rule.id]),
         })
 
     suggested.sort(key=lambda s: -s["score"])
-    message = None if suggested else "nothing fits this combination yet. " + GOAL_NEEDS[goal]
+    message = None if suggested else "Nothing fits this combination yet. " + GOAL_NEEDS[goal]
     return {"suggested": suggested, "ruled_out": ruled_out, "message": message}
 
 
@@ -447,4 +458,19 @@ LIMITS = {
     "scatter": "Association does not establish causation. A weak visible pattern does not rule out a nonlinear relationship.",
     "pie": "Similar slices are difficult to compare. Values must be nonnegative parts of the same whole.",
     "stacked_bar": "Proportions hide absolute totals. Values must be nonnegative parts of a meaningful whole.",
+}
+
+# where each rule's constraints come from (see sources.py). thresholds such as "6 slices" or
+# "20 values for a histogram" are our own conventions, so those rules also cite "team".
+RULE_SOURCES = {
+    "bar": ("zacks", "cleveland", "weissgerber", "team"),
+    "grouped_bar": ("cleveland", "team"),
+    "line": ("zacks", "mackinlay", "correll"),
+    "time_bar": ("zacks", "team"),
+    "histogram": ("weissgerber", "team"),
+    "box": ("weissgerber", "team"),
+    "strip": ("weissgerber", "team"),
+    "scatter": ("mackinlay",),
+    "pie": ("cleveland", "mackinlay", "rougier", "team"),
+    "stacked_bar": ("cleveland", "mackinlay", "team"),
 }

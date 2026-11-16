@@ -46,5 +46,6 @@ def test_median_export_uses_requested_aggregation():
     sel = [info['major'], info['gpa']]
     suggestion = suggest(sel, 'comparison', summary='median')['suggested'][0]
     chart = render(apply_types(df, sel), suggestion)
-    assert chart.to_dict()['encoding']['y']['aggregate'] == 'median'
+    enc = chart.to_dict()['encoding']  # value axis is x when bars are horizontal
+    assert 'median' in (enc['x'].get('aggregate'), enc['y'].get('aggregate'))
     assert to_png(chart, scale=1).startswith(b'\x89PNG')
